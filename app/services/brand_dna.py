@@ -1,12 +1,12 @@
 """
-Servicio Brand DNA Architect.
+Servicio Brand DNA Architect (Modulo I).
+
 Responsable de procesar manuales de marca: estructurar, hacer chunking,
 generar embeddings y guardar en Supabase.
 
-FASE 1 del RAG: Preparación de datos.
-    Dos modos:
-    A) Parámetros → IA genera manual completo → Chunks → Embeddings → Guardar
-    B) Texto crudo → IA estructura → Chunks → Embeddings → Guardar
+Fase 1 del RAG - Preparacion de datos:
+    A) Parametros del usuario --> IA genera manual --> Chunks --> Embeddings --> Guardar
+    B) Texto crudo --> IA estructura --> Chunks --> Embeddings --> Guardar
 """
 
 import json
@@ -17,15 +17,24 @@ from app.core.clients import supabase, groq_client, langfuse
 from app.services import embeddings
 
 
-# --- Modo A: Generar manual desde parámetros (lo que pide el reto) ---
+# ---------------------------------------------------------------------------
+# Modo A: Generar manual completo desde parametros
+# ---------------------------------------------------------------------------
 
-async def generate_manual(brand_id: str, product: str, tone: str, target_audience: str, extra_context: str = "") -> dict:
+async def generate_manual(
+    brand_id: str,
+    product: str,
+    tone: str,
+    target_audience: str,
+    extra_context: str = "",
+) -> dict:
     """
-    El usuario ingresa parámetros cortos y la IA genera un manual de marca completo.
-    Esto es lo que pide el reto:
-        "El usuario ingresa parámetros (ej. 'Snack saludable de quinua',
-         'Tono divertido pero profesional', 'Público Gen Z').
-         La IA genera un Manual de Marca Estructurado."
+    El usuario ingresa parametros cortos y la IA genera un manual de marca completo.
+
+    Flujo:
+        1. Groq genera JSON estructurado con 8 secciones
+        2. Se convierte a texto plano
+        3. Se pasa por el pipeline de ingesta (chunking + embeddings)
     """
     trace = langfuse.trace(name="brand_dna_generation", metadata={"brand_id": brand_id})
 
@@ -37,18 +46,18 @@ async def generate_manual(brand_id: str, product: str, tone: str, target_audienc
                 "role": "system",
                 "content": (
                     "Eres un director creativo de una agencia top de branding. "
-                    "A partir de los parámetros del usuario, genera un Manual de Marca "
+                    "A partir de los parametros del usuario, genera un Manual de Marca "
                     "completo y profesional en formato JSON con EXACTAMENTE estas claves:\n\n"
-                    "- tono_de_voz: Descripción detallada del tono, con ejemplos de frases que SÍ usar y que NO usar\n"
-                    "- paleta_colores: Colores primarios y secundarios con códigos HEX y su justificación\n"
-                    "- tipografia: Fuentes para títulos y cuerpo, con razón de la elección\n"
-                    "- valores_marca: 4-6 valores con descripción de cada uno\n"
+                    "- tono_de_voz: Descripcion detallada del tono, con ejemplos de frases que SI usar y que NO usar\n"
+                    "- paleta_colores: Colores primarios y secundarios con codigos HEX y su justificacion\n"
+                    "- tipografia: Fuentes para titulos y cuerpo, con razon de la eleccion\n"
+                    "- valores_marca: 4-6 valores con descripcion de cada uno\n"
                     "- personalidad: Arquetipos y rasgos de personalidad de la marca\n"
-                    "- publico_objetivo: Demografía, psicografía, hábitos y pain points\n"
+                    "- publico_objetivo: Demografia, psicografia, habitos y pain points\n"
                     "- restricciones: Lista de lo que NUNCA debe hacerse con esta marca\n"
-                    "- uso_logo: Reglas de uso del logo (tamaño mínimo, espaciado, fondos permitidos)\n\n"
-                    "Sé específico y detallado en cada sección. Esto será la fuente de verdad "
-                    "para toda la generación de contenido de la marca.\n"
+                    "- uso_logo: Reglas de uso del logo (tamano minimo, espaciado, fondos permitidos)\n\n"
+                    "Se especifico y detallado en cada seccion. Esto sera la fuente de verdad "
+                    "para toda la generacion de contenido de la marca.\n"
                     "Responde SOLO con el JSON."
                 ),
             },
@@ -57,7 +66,7 @@ async def generate_manual(brand_id: str, product: str, tone: str, target_audienc
                 "content": (
                     f"Producto: {product}\n"
                     f"Tono deseado: {tone}\n"
-                    f"Público objetivo: {target_audience}\n"
+                    f"Publico objetivo: {target_audience}\n"
                     f"{'Contexto adicional: ' + extra_context if extra_context else ''}"
                 ),
             },
@@ -70,31 +79,26 @@ async def generate_manual(brand_id: str, product: str, tone: str, target_audienc
     structured = json.loads(response.choices[0].message.content)
     gen_span.end(output={"sections": list(structured.keys())})
 
-    # Convertir el manual generado a texto plano para pasar por el pipeline de ingesta
+    # Convertir a texto plano para el pipeline de ingesta
     raw_text = "\n\n".join(
         f"## {key}\n{value}" for key, value in structured.items() if value
     )
 
-    # Reutilizar el pipeline de ingesta (chunking + embeddings)
     result = await ingest_manual(brand_id, raw_text, pre_structured=structured)
     result["generated_manual"] = structured
     return result
 
 
-# --- Modo B: Estructurar manual desde texto crudo ---
+# ---------------------------------------------------------------------------
+# Modo B: Estructurar manual desde texto crudo
+# ---------------------------------------------------------------------------
 
 async def _structure_manual(raw_text: str, trace) -> dict:
     """
-    Usa Groq (Llama 3) para leer el texto crudo del manual
-    y organizarlo en secciones claras.
+    Usa Groq para leer texto crudo y organizarlo en secciones.
 
     Entrada:  "Nuestra marca usa colores vibrantes. El tono es amigable..."
-    Salida:   {
-                "tono_de_voz": "Amigable, cercano, usa tuteo...",
-                "paleta_colores": "#FF5733, #33FF57...",
-                "valores": "Innovación, cercanía...",
-                ...
-              }
+    Salida:   {"tono_de_voz": "Amigable...", "paleta_colores": "#FF5733..."}
     """
     span = trace.span(name="structure_manual")
 
@@ -108,37 +112,31 @@ async def _structure_manual(raw_text: str, trace) -> dict:
                     "y devuelve un JSON con estas secciones: "
                     "tono_de_voz, paleta_colores, tipografia, valores_marca, "
                     "personalidad, publico_objetivo, restricciones, uso_logo. "
-                    "Si alguna sección no existe en el texto, ponla como null. "
+                    "Si alguna seccion no existe en el texto, ponla como null. "
                     "Responde SOLO con el JSON, sin explicaciones."
                 ),
             },
             {"role": "user", "content": raw_text},
         ],
-        temperature=0.1,  # Baja temperatura = respuesta más precisa, menos creativa
+        temperature=0.1,
         response_format={"type": "json_object"},
     )
 
-    import json
     structured = json.loads(response.choices[0].message.content)
     span.end(output={"sections_found": list(structured.keys())})
     return structured
 
 
-# --- Paso 2: Chunking (cortar en pedazos) ---
+# ---------------------------------------------------------------------------
+# Chunking: dividir el manual en fragmentos para busqueda semantica
+# ---------------------------------------------------------------------------
 
 def _chunk_manual(structured: dict) -> list[dict]:
     """
-    Toma el manual estructurado y lo corta en pedazos pequeños.
+    Divide el manual estructurado en chunks de 500 caracteres con 50 de overlap.
 
-    ¿Por qué cortar?
-        Si el manual tiene 20 páginas y alguien pregunta sobre "tono de voz",
-        no queremos enviar las 20 páginas a la IA. Solo el pedazo relevante.
-
-    ¿Cómo corta?
-        - chunk_size=500: cada pedazo tiene máximo 500 caracteres
-        - chunk_overlap=50: los pedazos se solapan un poco para no perder contexto
-          Ejemplo: "...ser amigable. | El tono amigable se aplica..."
-                                  ↑ overlap (se repite en ambos chunks)
+    El overlap evita que se corten ideas a la mitad entre chunks contiguos.
+    Cada chunk conserva metadata de su seccion de origen.
     """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -150,38 +148,43 @@ def _chunk_manual(structured: dict) -> list[dict]:
         if section_content is None:
             continue
 
-        # Convertir a string si no lo es
         text = str(section_content)
-
-        # Cortar esta sección en pedazos
         section_chunks = splitter.split_text(text)
 
         for chunk_text in section_chunks:
             chunks.append({
                 "text": chunk_text,
-                "type": section_name,  # "tono_de_voz", "paleta_colores", etc.
+                "type": section_name,
             })
 
     return chunks
 
 
-# --- Paso 3 y 4: Embeddings + Guardar ---
+# ---------------------------------------------------------------------------
+# Pipeline de ingesta: estructura + chunks + embeddings + guardar
+# ---------------------------------------------------------------------------
 
-async def ingest_manual(brand_id: str, raw_text: str, pre_structured: dict | None = None) -> dict:
+async def ingest_manual(
+    brand_id: str,
+    raw_text: str,
+    pre_structured: dict | None = None,
+) -> dict:
     """
-    Pipeline completo: recibe texto crudo → lo estructura → lo corta →
-    genera embeddings → guarda todo en Supabase.
+    Pipeline completo de ingesta de un manual de marca.
 
-    Este es el método que llama la ruta POST /api/brands/{id}/manual
+    Pasos:
+        1. Estructurar con IA (o usar pre_structured si viene de generate_manual)
+        2. Guardar JSON estructurado en brand_manuals
+        3. Dividir en chunks
+        4. Generar embeddings (Google AI, 768 dims)
+        5. Guardar chunks + vectores en brand_embeddings
     """
-    # Crear trace en Langfuse (para monitoreo)
     trace = langfuse.trace(name="brand_dna_ingestion", metadata={"brand_id": brand_id})
 
-    # Paso 1: Estructurar con IA (o usar el pre-estructurado si viene de generate_manual)
+    # Paso 1: Estructurar
     structured = pre_structured or await _structure_manual(raw_text, trace)
 
-    # Guardar el JSON estructurado en la tabla brand_manuals
-    # Primero borrar si ya existe (para evitar conflicto de unique constraint)
+    # Paso 2: Guardar JSON (reemplaza version anterior)
     supabase.table("brand_manuals").delete().eq("brand_id", brand_id).execute()
     supabase.table("brand_manuals").insert({
         "brand_id": brand_id,
@@ -189,24 +192,20 @@ async def ingest_manual(brand_id: str, raw_text: str, pre_structured: dict | Non
         "version": 1,
     }).execute()
 
-    # Paso 2: Cortar en chunks
+    # Paso 3: Chunking
     chunks = _chunk_manual(structured)
-
     if not chunks:
         trace.update(output={"error": "No se generaron chunks"})
         return {"chunks_stored": 0}
 
-    # Paso 3: Generar embeddings para todos los chunks
+    # Paso 4: Embeddings
     embed_span = trace.span(name="generate_embeddings", input={"count": len(chunks)})
     vectors = await embeddings.generate([c["text"] for c in chunks])
     embed_span.end()
 
-    # Paso 4: Guardar en Supabase (texto + vector juntos)
-
-    # Primero borrar embeddings anteriores de esta marca (si re-sube el manual)
+    # Paso 5: Guardar en Supabase (reemplaza embeddings anteriores)
     supabase.table("brand_embeddings").delete().eq("brand_id", brand_id).execute()
 
-    # Insertar los nuevos
     rows = [
         {
             "brand_id": brand_id,
@@ -228,8 +227,12 @@ async def ingest_manual(brand_id: str, raw_text: str, pre_structured: dict | Non
     }
 
 
+# ---------------------------------------------------------------------------
+# Consultas
+# ---------------------------------------------------------------------------
+
 async def get_manual(brand_id: str) -> dict | None:
-    """Retorna el manual estructurado de una marca."""
+    """Retorna el manual estructurado mas reciente de una marca."""
     result = (
         supabase.table("brand_manuals")
         .select("*")
@@ -242,6 +245,6 @@ async def get_manual(brand_id: str) -> dict | None:
 
 
 async def delete_manual(brand_id: str) -> None:
-    """Elimina el manual y todos sus embeddings."""
+    """Elimina el manual y todos sus embeddings de una marca."""
     supabase.table("brand_embeddings").delete().eq("brand_id", brand_id).execute()
     supabase.table("brand_manuals").delete().eq("brand_id", brand_id).execute()

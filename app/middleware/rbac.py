@@ -1,10 +1,10 @@
 """
-Middleware de control de acceso por roles (RBAC).
+Middleware RBAC (Role-Based Access Control).
 
-Roles del reto:
-    - creator:    Genera contenido, envía a revisión
-    - approver_a: Primera revisión (Brand Manager)
-    - approver_b: Aprobación final (Director)
+Define 3 roles con permisos granulares:
+    - creator:    Genera contenido, edita borradores
+    - approver_a: Primera revision (Brand Manager)
+    - approver_b: Aprobacion final + auditoria de imagen (Director)
 
 Uso en endpoints:
     @router.post("/algo")
@@ -13,12 +13,12 @@ Uso en endpoints:
 """
 
 from enum import Enum
+
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.core.clients import supabase
 
-# Esquema de seguridad: espera header "Authorization: Bearer <token>"
 security = HTTPBearer()
 
 
@@ -28,7 +28,7 @@ class Role(str, Enum):
     APPROVER_B = "approver_b"
 
 
-# Qué roles pueden hacer qué acción
+# Matriz de permisos: que roles pueden ejecutar cada accion
 PERMISSIONS: dict[str, set[Role]] = {
     # Brand DNA
     "brand.create":        {Role.CREATOR, Role.APPROVER_A, Role.APPROVER_B},
@@ -51,7 +51,9 @@ PERMISSIONS: dict[str, set[Role]] = {
 }
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
     """Valida el JWT de Supabase y retorna el perfil del usuario."""
     try:
         token = credentials.credentials
@@ -63,20 +65,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             .single()
             .execute()
         )
-        # Agregar email desde auth (no está en user_profiles)
         data = profile.data
         data["email"] = user.user.email
         return data
     except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+        raise HTTPException(status_code=401, detail="Token invalido o expirado")
 
 
 def require_permission(permission: str):
-    """Dependency de FastAPI que verifica si el usuario tiene permiso."""
-    async def checker(current_user=Depends(get_current_user)):
+    """Dependency de FastAPI que verifica si el usuario tiene el permiso requerido."""
+
+    async def checker(current_user: dict = Depends(get_current_user)) -> dict:
         user_role = Role(current_user["role"])
         allowed_roles = PERMISSIONS.get(permission, set())
         if user_role not in allowed_roles:
-            raise HTTPException(status_code=403, detail="No tienes permiso para esta acción")
+            raise HTTPException(
+                status_code=403, detail="No tienes permiso para esta accion"
+            )
         return current_user
+
     return checker

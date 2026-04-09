@@ -136,8 +136,7 @@ content-suite/
 |-- scripts/
 |   +-- seed_users.py             # Crea los 3 usuarios de prueba
 |-- requirements.txt              # Dependencias Python
-|-- Dockerfile                    # Imagen Docker del backend
-|-- render.yaml                   # Deploy en Render.com
+|-- render.yaml                   # Deploy en Render.com (backend + frontend)
 +-- .env.example                  # Template de variables de entorno
 ```
 
@@ -233,21 +232,18 @@ npm run dev
 # App: http://localhost:3000
 ```
 
-## Deploy
+## Deploy (Render - monorepo)
 
-### Backend (Render)
+El proyecto se despliega completo en Render desde un solo repositorio
+usando `render.yaml` (Infrastructure as Code).
 
-1. Conectar repo en [render.com](https://render.com)
-2. Usar `render.yaml` o configurar manualmente:
-   - **Build:** `pip install -r requirements.txt`
-   - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-3. Agregar variables de entorno del `.env`
-
-### Frontend (Vercel)
-
-1. Conectar repo en [vercel.com](https://vercel.com)
-2. **Root directory:** `frontend`
-3. Agregar variable: `NEXT_PUBLIC_API_URL` = URL del backend en Render
+1. Conectar el repo en [render.com](https://render.com)
+2. Render detecta `render.yaml` y crea 2 servicios automaticamente:
+   - **content-suite-api** (Python): Backend FastAPI
+   - **content-suite-app** (Node): Frontend Next.js
+3. Configurar las variables de entorno en cada servicio:
+   - Backend: copiar las keys del `.env`
+   - Frontend: `NEXT_PUBLIC_API_URL` = URL del backend (ej: `https://content-suite-api.onrender.com`)
 
 ## Decisiones Tecnicas
 

@@ -1,16 +1,31 @@
 """
-Rutas del módulo Brand DNA Architect.
-CRUD de marcas + subida y consulta de manuales.
+Rutas del modulo Brand DNA Architect.
+
+CRUD de marcas + generacion/subida/consulta de manuales.
+Endpoints:
+    POST /api/brands/                      - Crear marca
+    GET  /api/brands/                      - Listar marcas
+    GET  /api/brands/{id}                  - Detalle de marca
+    POST /api/brands/{id}/manual           - Subir manual (texto)
+    POST /api/brands/{id}/manual/generate  - Generar manual con IA
+    GET  /api/brands/{id}/manual           - Obtener manual (JSON)
+    POST /api/brands/{id}/manual/query     - Busqueda semantica
 """
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.clients import supabase
-from app.schemas.brand import BrandCreate, BrandResponse, ManualUpload, ManualGenerateRequest, ManualQueryRequest
+from app.schemas.brand import (
+    BrandCreate,
+    BrandResponse,
+    ManualUpload,
+    ManualGenerateRequest,
+    ManualQueryRequest,
+)
 from app.middleware.rbac import require_permission
 from app.services import brand_dna, retrieval
 
-router = APIRouter(prefix="/api/brands", tags=["brands"])
+router = APIRouter(prefix="/api/brands", tags=["brands"], redirect_slashes=False)
 
 
 @router.post("/", response_model=BrandResponse)
@@ -26,30 +41,36 @@ async def create_brand(body: BrandCreate, user=Depends(require_permission("brand
 
 @router.get("/")
 async def list_brands(user=Depends(require_permission("brand.read"))):
-    """Listar marcas del usuario."""
+    """Listar todas las marcas."""
     result = supabase.table("brands").select("*").execute()
     return result.data
 
 
 @router.get("/{brand_id}", response_model=BrandResponse)
 async def get_brand(brand_id: str, user=Depends(require_permission("brand.read"))):
-    """Detalle de una marca."""
+    """Detalle de una marca por ID."""
     result = supabase.table("brands").select("*").eq("id", brand_id).single().execute()
     return result.data
 
 
-# --- Manual ---
-
 @router.post("/{brand_id}/manual")
-async def upload_manual(brand_id: str, body: ManualUpload, user=Depends(require_permission("manual.upload"))):
-    """Subir manual de marca como texto. Procesa, genera embeddings y guarda."""
+async def upload_manual(
+    brand_id: str,
+    body: ManualUpload,
+    user=Depends(require_permission("manual.upload")),
+):
+    """Subir manual de marca como texto. Estructura, genera embeddings y guarda."""
     result = await brand_dna.ingest_manual(brand_id, body.raw_text)
     return result
 
 
 @router.post("/{brand_id}/manual/generate")
-async def generate_manual(brand_id: str, body: ManualGenerateRequest, user=Depends(require_permission("manual.upload"))):
-    """Generar manual de marca desde parámetros con IA (lo que pide el reto)."""
+async def generate_manual(
+    brand_id: str,
+    body: ManualGenerateRequest,
+    user=Depends(require_permission("manual.upload")),
+):
+    """Generar manual de marca completo desde parametros con IA."""
     result = await brand_dna.generate_manual(
         brand_id=brand_id,
         product=body.product,
@@ -62,7 +83,7 @@ async def generate_manual(brand_id: str, body: ManualGenerateRequest, user=Depen
 
 @router.get("/{brand_id}/manual")
 async def get_manual(brand_id: str, user=Depends(require_permission("manual.read"))):
-    """Obtener el manual estructurado (JSON)."""
+    """Obtener el manual estructurado (JSON) de una marca."""
     manual = await brand_dna.get_manual(brand_id)
     if not manual:
         raise HTTPException(status_code=404, detail="Esta marca no tiene manual cargado")
@@ -70,7 +91,11 @@ async def get_manual(brand_id: str, user=Depends(require_permission("manual.read
 
 
 @router.post("/{brand_id}/manual/query")
-async def query_manual(brand_id: str, body: ManualQueryRequest, user=Depends(require_permission("manual.read"))):
-    """Búsqueda semántica contra el manual."""
+async def query_manual(
+    brand_id: str,
+    body: ManualQueryRequest,
+    user=Depends(require_permission("manual.read")),
+):
+    """Busqueda semantica contra el manual de marca."""
     results = await retrieval.search(brand_id, body.query, body.top_k)
     return {"query": body.query, "results": results}

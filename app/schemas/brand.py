@@ -1,7 +1,4 @@
-"""
-Schemas de validación para el módulo Brand DNA.
-Definen la forma de los datos que entran y salen de la API.
-"""
+"""Schemas de validacion para el modulo Brand DNA."""
 
 from pydantic import BaseModel
 
@@ -19,17 +16,22 @@ class BrandResponse(BaseModel):
 
 
 class ManualUpload(BaseModel):
-    raw_text: str  # Texto extraído del PDF (el frontend lo envía ya parseado)
+    """Texto crudo de un manual existente (el frontend lo envia ya parseado)."""
+
+    raw_text: str
 
 
 class ManualGenerateRequest(BaseModel):
-    """El reto pide que el usuario ingrese parámetros y la IA genere el manual."""
-    product: str            # "Snack saludable de quinua"
-    tone: str               # "Divertido pero profesional"
-    target_audience: str    # "Gen Z"
-    extra_context: str = "" # Cualquier info adicional
+    """Parametros para que la IA genere el manual de marca."""
+
+    product: str             # "Snack saludable de quinua"
+    tone: str                # "Divertido pero profesional"
+    target_audience: str     # "Gen Z"
+    extra_context: str = ""  # Info adicional (opcional)
 
 
 class ManualQueryRequest(BaseModel):
+    """Busqueda semantica contra el manual."""
+
     query: str
     top_k: int = 5

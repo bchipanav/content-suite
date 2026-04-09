@@ -1,29 +1,34 @@
-# Framework
+# =============================================
+# Content Suite - Dependencias Python
+# =============================================
+# Instalar: pip install -r requirements.txt
+
+# --- Framework ---
 fastapi==0.115.0
 uvicorn==0.30.0
 
-# Supabase
+# --- Base de datos ---
 supabase==2.9.1
 
-# LLM providers
-groq==0.11.0
-google-generativeai==0.8.0
+# --- LLM Providers ---
+groq==0.11.0                       # Llama 3.3 70B (generacion de texto)
+google-generativeai==0.8.6         # Gemini (embeddings + vision)
 
-# HTTP client
-httpx==0.27.0
+# --- HTTP ---
+httpx==0.27.0                      # Cliente async para descargas
 
-# RAG / Text processing
-langchain-text-splitters==0.3.0
+# --- RAG / Procesamiento de texto ---
+langchain-text-splitters==0.3.0    # Chunking con overlap
 
-# Observabilidad
-langfuse==2.51.0
+# --- Observabilidad ---
+langfuse==2.51.0                   # Trazas, scores, metricas
 
-# Config
-pydantic-settings==2.5.0
-python-dotenv==1.0.1
+# --- Configuracion ---
+pydantic-settings==2.5.0           # Variables de entorno tipadas
+python-dotenv==1.0.1               # Lectura de .env
 
-# Auth
-python-jose[cryptography]==3.3.0
+# --- Auth ---
+python-jose[cryptography]==3.3.0   # Validacion de JWT
 
-# Utils
-python-multipart==0.0.12
+# --- Utilidades ---
+python-multipart==0.0.12           # Soporte para file uploads (FormData)

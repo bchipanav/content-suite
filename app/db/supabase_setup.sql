@@ -50,8 +50,7 @@ create table content_drafts (
     brand_id    uuid references brands(id) on delete cascade,
     prompt      text not null,
     result      text,
-    platform    text,
-    tone        text,
+    content_type text,
     status      text not null default 'pending_review'
                 check (status in ('pending_review', 'approved', 'rejected')),
     created_by  uuid references auth.users(id),

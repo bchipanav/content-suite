@@ -1,6 +1,13 @@
 """
-Rutas del módulo Governance & Multimodal Audit.
-Validación de contenido y flujo de aprobación.
+Rutas del modulo Governance & Multimodal Audit.
+
+Validacion de contenido, flujo de aprobacion y auditoria de imagen.
+Endpoints:
+    POST /api/governance/validate              - Validar texto vs manual
+    POST /api/governance/validate-image        - Validar imagen por URL
+    POST /api/governance/validate-image/upload - Validar imagen (file upload)
+    POST /api/governance/drafts/{id}/review    - Aprobar/rechazar borrador
+    GET  /api/governance/audit-log             - Historial de auditoria
 """
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -19,14 +26,20 @@ router = APIRouter(prefix="/api/governance", tags=["governance"])
 
 
 @router.post("/validate", response_model=ValidationResponse)
-async def validate_text(body: ValidateTextRequest, user=Depends(require_permission("governance.validate"))):
+async def validate_text(
+    body: ValidateTextRequest,
+    user=Depends(require_permission("governance.validate")),
+):
     """Validar texto contra el manual de marca (compliance score)."""
     result = await governance.validate_text(body.brand_id, body.text)
     return result
 
 
 @router.post("/validate-image", response_model=ValidationResponse)
-async def validate_image_by_url(body: ValidateImageRequest, user=Depends(require_permission("governance.validate"))):
+async def validate_image_by_url(
+    body: ValidateImageRequest,
+    user=Depends(require_permission("governance.validate")),
+):
     """Validar imagen por URL contra reglas visuales con Gemini Vision."""
     result = await governance.validate_image_from_url(body.brand_id, body.image_url)
     return result
@@ -38,14 +51,9 @@ async def validate_image_upload(
     file: UploadFile = File(...),
     user=Depends(require_permission("governance.validate")),
 ):
-    """
-    Subir una imagen desde la computadora y validarla contra el manual.
-    El archivo se sube a Supabase Storage y luego se analiza con Gemini Vision.
-    """
+    """Subir imagen y validarla contra el manual con Gemini Vision."""
     file_bytes = await file.read()
     content_type = file.content_type or "image/png"
-
-    # Analizar con Gemini Vision (no guardamos la imagen, solo la analizamos)
     result = await governance.validate_image_from_bytes(brand_id, file_bytes, content_type)
     return result
 
@@ -56,7 +64,7 @@ async def review_draft(
     body: ReviewRequest,
     user=Depends(require_permission("governance.approve")),
 ):
-    """Aprobar, rechazar o pedir revisión de un borrador."""
+    """Aprobar o rechazar un borrador. Registra en audit_log."""
     result = await governance.review_draft(
         draft_id=draft_id,
         action=body.action,
@@ -71,7 +79,7 @@ async def get_audit_log(
     draft_id: str | None = None,
     user=Depends(require_permission("governance.validate")),
 ):
-    """Historial de auditoría."""
+    """Historial de auditoria, opcionalmente filtrado por borrador."""
     query = supabase.table("audit_log").select("*")
     if draft_id:
         query = query.eq("draft_id", draft_id)

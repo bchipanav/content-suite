@@ -1,12 +1,12 @@
-"""
-Schemas de validación para el módulo Governance & Audit.
-"""
+"""Schemas de validacion para el modulo Governance & Audit."""
 
 from pydantic import BaseModel
 
 
 class ReviewRequest(BaseModel):
-    action: str         # "approved" o "rejected"
+    """Accion de aprobacion/rechazo sobre un borrador."""
+
+    action: str              # "approved" | "rejected"
     comments: str | None = None
 
 
@@ -22,6 +22,6 @@ class ValidateImageRequest(BaseModel):
 
 class ValidationResponse(BaseModel):
     compliant: bool
-    score: float                        # 0-100
-    issues: list[str]                   # Lista de problemas encontrados
-    image_url: str | None = None        # Solo presente en upload de archivo
+    score: float              # 0-100
+    issues: list[str]         # Problemas encontrados (vacio si cumple)
+    image_url: str | None = None

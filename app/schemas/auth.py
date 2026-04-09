@@ -1,6 +1,4 @@
-"""
-Schemas de validación para autenticación.
-"""
+"""Schemas de validacion para autenticacion."""
 
 from pydantic import BaseModel
 

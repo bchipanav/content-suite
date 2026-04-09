@@ -1,5 +1,6 @@
-# Configuración para deploy en Render.com (tier gratuito)
+# Deploy en Render.com (monorepo: backend + frontend)
 services:
+  # --- Backend (FastAPI) ---
   - type: web
     name: content-suite-api
     runtime: python
@@ -22,3 +23,14 @@ services:
         sync: false
       - key: LANGFUSE_HOST
         value: https://cloud.langfuse.com
+
+  # --- Frontend (Next.js) ---
+  - type: web
+    name: content-suite-app
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

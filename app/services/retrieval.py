@@ -1,16 +1,14 @@
 """
-Servicio de Retrieval (búsqueda semántica).
+Servicio de Retrieval - Busqueda semantica (Modulo RAG Fase 2).
 
-FASE 2 del RAG: Búsqueda.
-    Query del usuario → Embedding → Buscar en pgvector → Retornar chunks relevantes
+Pipeline:
+    Query del usuario --> Embedding --> Buscar en pgvector --> Retornar chunks relevantes
 
-¿Cómo funciona la búsqueda?
-    pgvector compara el vector de la pregunta contra todos los vectores guardados.
-    Usa "distancia coseno" para medir qué tan parecidos son.
-
-    Similitud = 1.0 → idénticos en significado
-    Similitud = 0.0 → nada que ver
-    Similitud > 0.3 → suficientemente relevante (nuestro umbral)
+pgvector compara el vector de la query contra todos los vectores almacenados
+usando distancia coseno:
+    Similitud 1.0 = identicos en significado
+    Similitud 0.0 = sin relacion
+    Threshold 0.3 = umbral minimo de relevancia
 """
 
 from app.core.clients import supabase, langfuse
@@ -19,36 +17,24 @@ from app.services import embeddings
 
 async def search(brand_id: str, query: str, top_k: int = 5) -> list[dict]:
     """
-    Busca los chunks del manual más relevantes para una query.
+    Busca los chunks del manual mas relevantes para una query.
 
-    Ejemplo:
-        query = "¿Qué tono de voz debo usar?"
-        results = await search("brand-123", query)
-        # results = [
-        #     {"chunk_text": "El tono debe ser amigable...", "similarity": 0.92},
-        #     {"chunk_text": "Evitar lenguaje formal...", "similarity": 0.87},
-        # ]
-
-    Parámetros:
+    Args:
         brand_id: ID de la marca (solo busca en SU manual)
-        query: Lo que preguntó/pidió el usuario
-        top_k: Cuántos resultados devolver (default: 5)
+        query: Texto de busqueda del usuario
+        top_k: Cantidad maxima de resultados (default: 5)
+
+    Returns:
+        Lista de chunks con campos: chunk_text, chunk_type, similarity
     """
     trace = langfuse.trace(name="retrieval_search")
 
-    # Paso 1: Convertir la query en vector
+    # Paso 1: Convertir query a vector
     embed_span = trace.span(name="embed_query")
     query_vector = await embeddings.generate_single(query)
     embed_span.end()
 
-    # Paso 2: Buscar en pgvector usando la función RPC que creamos en el SQL
-    #
-    # Esta función (match_brand_embeddings) hace lo siguiente internamente:
-    #   - Toma el vector de la query
-    #   - Lo compara contra todos los vectores de esa marca
-    #   - Calcula similitud coseno entre cada par
-    #   - Filtra los que superen el umbral (0.7)
-    #   - Retorna los top_k más similares, ordenados de mayor a menor
+    # Paso 2: Busqueda por similitud coseno en pgvector (funcion RPC)
     search_span = trace.span(name="pgvector_search")
     result = supabase.rpc(
         "match_brand_embeddings",

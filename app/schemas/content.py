@@ -1,16 +1,14 @@
-"""
-Schemas de validación para el módulo Creative Engine.
-"""
+"""Schemas de validacion para el modulo Creative Engine."""
 
 from pydantic import BaseModel
 
 
 class GenerateRequest(BaseModel):
+    """Request para generar contenido con RAG."""
+
     brand_id: str
     prompt: str
-    platform: str = "general"       # instagram, twitter, linkedin, blog...
-    tone: str | None = None         # overrides del tono por defecto de la marca
-    format: str = "post"            # post, story, article, email...
+    content_type: str = "product_description"  # product_description | video_script | image_prompt
 
 
 class DraftResponse(BaseModel):
@@ -18,6 +16,6 @@ class DraftResponse(BaseModel):
     brand_id: str
     prompt: str
     result: str
-    platform: str
+    content_type: str
     status: str
     created_at: str

@@ -1,6 +1,11 @@
 """
-Rutas de autenticación.
+Rutas de autenticacion.
+
 Usa Supabase Auth para login/register y manejo de JWT.
+Endpoints:
+    POST /api/auth/register  - Crear cuenta + perfil con rol
+    POST /api/auth/login     - Iniciar sesion, retorna JWT
+    GET  /api/auth/me        - Perfil del usuario autenticado
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,7 +21,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 async def register(body: RegisterRequest):
     """Crear cuenta nueva en Supabase Auth + perfil con rol."""
     try:
-        # 1. Crear usuario en Supabase Auth
         auth_response = supabase.auth.sign_up({
             "email": body.email,
             "password": body.password,
@@ -25,11 +29,10 @@ async def register(body: RegisterRequest):
         if not auth_response.user:
             raise HTTPException(status_code=400, detail="No se pudo crear el usuario")
 
-        # 2. Crear perfil con rol en nuestra tabla
         supabase.table("user_profiles").insert({
             "id": auth_response.user.id,
             "full_name": body.full_name,
-            "role": "creator",  # Rol por defecto
+            "role": "creator",
         }).execute()
 
         return {
@@ -45,20 +48,19 @@ async def register(body: RegisterRequest):
 
 @router.post("/login")
 async def login(body: LoginRequest):
-    """Iniciar sesión, devuelve JWT de Supabase."""
+    """Iniciar sesion, devuelve JWT de Supabase."""
     try:
         auth_response = supabase.auth.sign_in_with_password({
             "email": body.email,
             "password": body.password,
         })
-
         return {
             "access_token": auth_response.session.access_token,
             "user_id": auth_response.user.id,
             "email": auth_response.user.email,
         }
     except Exception:
-        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+        raise HTTPException(status_code=401, detail="Email o contrasena incorrectos")
 
 
 @router.get("/me", response_model=UserResponse)

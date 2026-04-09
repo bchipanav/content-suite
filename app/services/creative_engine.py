@@ -1,95 +1,83 @@
 """
-Servicio Creative Engine.
+Servicio Creative Engine (Modulo II).
 
-FASE 3 del RAG: Generación.
-    Contexto recuperado + Prompt del usuario → Groq (Llama 3) → Contenido final
+Pipeline RAG completo para generacion de contenido:
+    1. RETRIEVE: Buscar chunks relevantes del manual en pgvector
+    2. BUILD:    Construir prompt con contexto de marca + instrucciones por formato
+    3. GENERATE: Enviar a Groq (Llama 3.3 70B)
+    4. SAVE:     Guardar borrador con status pending_review
 
-Aquí se junta todo:
-    1. Retrieval trae los chunks relevantes del manual
-    2. Se construye un prompt con ese contexto
-    3. Groq genera el contenido respetando la marca
+Tipos de contenido soportados:
+    - product_description: Descripcion de producto para e-commerce
+    - video_script:        Guion de video con escenas y direccion
+    - image_prompt:        Prompt detallado para generadores de imagen (Midjourney/DALL-E)
 """
 
 from app.core.clients import supabase, groq_client, langfuse
 from app.services import retrieval
 
+# Instrucciones especificas por tipo de contenido
+FORMAT_INSTRUCTIONS = {
+    "product_description": (
+        "Genera una descripcion de producto para e-commerce/catalogo.\n"
+        "Incluye: titulo del producto, descripcion corta (1 linea), descripcion larga "
+        "(2-3 parrafos), bullet points de beneficios, y un tagline."
+    ),
+    "video_script": (
+        "Genera un guion de video profesional con este formato:\n"
+        "- ESCENA 1: [Descripcion visual] | [Texto en pantalla] | [Voz en off]\n"
+        "- ESCENA 2: ...\n"
+        "Incluye notas de direccion (angulos, transiciones, musica sugerida).\n"
+        "El guion debe respetar la identidad visual y tono de la marca."
+    ),
+    "image_prompt": (
+        "Genera un prompt detallado para crear una imagen con IA (Midjourney/DALL-E).\n"
+        "El prompt debe incluir:\n"
+        "- Descripcion de la escena principal\n"
+        "- Estilo visual (basado en las directrices de marca)\n"
+        "- Paleta de colores especifica (usar los colores del manual)\n"
+        "- Mood/atmosfera\n"
+        "- Composicion y elementos que deben aparecer\n"
+        "- Elementos que NO deben aparecer (segun restricciones de marca)\n"
+        "Formato: un prompt listo para copiar y pegar en un generador de imagenes."
+    ),
+}
 
-async def generate(brand_id: str, prompt: str, params: dict) -> dict:
+
+async def generate(
+    brand_id: str,
+    prompt: str,
+    content_type: str = "product_description",
+) -> dict:
     """
-    Pipeline RAG completo.
+    Pipeline RAG completo: retrieve + build + generate + save.
 
-    Ejemplo:
-        result = await generate(
-            brand_id="brand-123",
-            prompt="Post de Instagram anunciando nueva colección de verano",
-            params={"platform": "instagram", "format": "post"}
-        )
-        # result = {
-        #     "id": "draft-456",
-        #     "result": "☀️ ¡El verano llegó con todo!...",
-        #     "context_used": ["El tono debe ser...", ...],
-        #     ...
-        # }
+    Args:
+        brand_id: ID de la marca
+        prompt: Descripcion del contenido deseado
+        content_type: Tipo de contenido a generar
+
+    Returns:
+        Dict con id, result, content_type, status, context_used, created_at
     """
     trace = langfuse.trace(
         name="content_generation",
-        metadata={"brand_id": brand_id, "platform": params.get("platform")},
+        metadata={"brand_id": brand_id, "content_type": content_type},
     )
 
-    # =============================================
-    # PASO 1: RETRIEVE — Buscar contexto relevante
-    # =============================================
-    # "¿Qué dice el manual de marca sobre lo que me están pidiendo?"
+    # --- RETRIEVE: Buscar contexto relevante del manual ---
     retrieve_span = trace.span(name="retrieve_context")
     context_chunks = await retrieval.search(brand_id, prompt)
     retrieve_span.end(output={"chunks_found": len(context_chunks)})
 
-    # Unir los chunks en un solo texto de contexto
-    # Separados por "---" para que la IA sepa dónde empieza cada uno
     context_text = "\n---\n".join([c["chunk_text"] for c in context_chunks])
 
-    # =============================================
-    # PASO 2: BUILD PROMPT — Armar la instrucción
-    # =============================================
-    platform = params.get("platform", "general")
-    content_format = params.get("format", "post")
-    tone_override = params.get("tone")
+    # --- BUILD: Construir prompt con contexto + instrucciones ---
+    format_instruction = FORMAT_INSTRUCTIONS.get(
+        content_type, FORMAT_INSTRUCTIONS["product_description"]
+    )
 
-    # Instrucciones específicas por formato
-    format_instructions = {
-        "post": "Genera un post para redes sociales. Incluye hashtags relevantes si aplica.",
-        "story": "Genera texto para una story o reel. Debe ser breve, impactante y con call-to-action.",
-        "article": "Genera un artículo completo con título, introducción, desarrollo y cierre.",
-        "caption": "Genera un caption corto y atractivo para acompañar una imagen.",
-        "newsletter": "Genera un email de newsletter con subject line, saludo, cuerpo y CTA.",
-        "video_script": (
-            "Genera un guión de video profesional con este formato:\n"
-            "- ESCENA 1: [Descripción visual] | [Texto en pantalla] | [Voz en off]\n"
-            "- ESCENA 2: ...\n"
-            "Incluye notas de dirección (ángulos, transiciones, música sugerida).\n"
-            "El guión debe respetar la identidad visual y tono de la marca."
-        ),
-        "image_prompt": (
-            "Genera un prompt detallado para crear una imagen con IA (Midjourney/DALL-E).\n"
-            "El prompt debe incluir:\n"
-            "- Descripción de la escena principal\n"
-            "- Estilo visual (basado en las directrices de marca)\n"
-            "- Paleta de colores específica (usar los colores del manual)\n"
-            "- Mood/atmósfera\n"
-            "- Composición y elementos que deben aparecer\n"
-            "- Elementos que NO deben aparecer (según restricciones de marca)\n"
-            "Formato: un prompt listo para copiar y pegar en un generador de imágenes."
-        ),
-        "product_description": (
-            "Genera una descripción de producto para e-commerce/catálogo.\n"
-            "Incluye: título del producto, descripción corta (1 línea), descripción larga "
-            "(2-3 párrafos), bullet points de beneficios, y un tagline."
-        ),
-    }
-
-    format_instruction = format_instructions.get(content_format, f"Genera contenido en formato: {content_format}")
-
-    system_prompt = f"""Eres un creador de contenido experto que trabaja para una marca específica.
+    system_prompt = f"""Eres un creador de contenido experto que trabaja para una marca especifica.
 
 DIRECTRICES DE MARCA (debes seguirlas estrictamente):
 {context_text}
@@ -97,16 +85,12 @@ DIRECTRICES DE MARCA (debes seguirlas estrictamente):
 REGLAS:
 - Respeta el tono de voz definido en las directrices
 - Usa solo los colores y estilos visuales mencionados si aplica
-- No inventes información sobre la marca que no esté en las directrices
-- Plataforma: {platform}
-{"- Tono específico solicitado: " + tone_override if tone_override else ""}
+- No inventes informacion sobre la marca que no este en las directrices
 
 FORMATO SOLICITADO:
 {format_instruction}"""
 
-    # =============================================
-    # PASO 3: GENERATE — Enviar a Groq (Llama 3)
-    # =============================================
+    # --- GENERATE: Enviar a Groq ---
     generation = trace.generation(
         name="groq_llama3",
         model="llama-3.3-70b-versatile",
@@ -122,24 +106,22 @@ FORMATO SOLICITADO:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
         ],
-        temperature=0.7,   # Balance entre creatividad y consistencia
+        temperature=0.7,
         max_tokens=2000,
     )
 
     generated_text = response.choices[0].message.content
     generation.end(output=generated_text)
 
-    # =============================================
-    # PASO 4: SAVE — Guardar borrador en Supabase
-    # =============================================
+    # --- SAVE: Guardar borrador en Supabase ---
     draft = (
         supabase.table("content_drafts")
         .insert({
             "brand_id": brand_id,
             "prompt": prompt,
             "result": generated_text,
-            "platform": platform,
-            "status": "pending_review",  # Siempre empieza pendiente de revisión
+            "content_type": content_type,
+            "status": "pending_review",
         })
         .execute()
     )
@@ -151,7 +133,7 @@ FORMATO SOLICITADO:
         "brand_id": brand_id,
         "prompt": prompt,
         "result": generated_text,
-        "platform": platform,
+        "content_type": content_type,
         "status": "pending_review",
         "context_used": [c["chunk_text"] for c in context_chunks],
         "created_at": draft.data[0]["created_at"],
