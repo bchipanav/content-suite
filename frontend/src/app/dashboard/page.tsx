@@ -1,12 +1,5 @@
 "use client";
 
-// ============================================
-// Dashboard — Página principal después del login
-// ============================================
-// 1. Si no hay marcas → muestra formulario para crear una
-// 2. Si hay marcas pero ninguna seleccionada → muestra selector
-// 3. Si hay marca seleccionada → muestra resumen + accesos rápidos
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -24,18 +17,15 @@ export default function DashboardPage() {
   >([]);
   const [loading, setLoading] = useState(true);
 
-  // Formulario de nueva marca
   const [showNewBrand, setShowNewBrand] = useState(false);
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandDesc, setNewBrandDesc] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Cargar marcas al entrar
   useEffect(() => {
     loadBrands();
   }, []);
 
-  // Cargar drafts cuando hay marca activa
   useEffect(() => {
     if (activeBrand) {
       api.listDrafts({ brand_id: activeBrand.id }).then(setDrafts as any).catch(() => {});
@@ -47,7 +37,6 @@ export default function DashboardPage() {
     try {
       const data = await api.listBrands();
       setBrands(data as Brand[]);
-      // Si solo hay una marca, seleccionarla automáticamente
       if (data.length === 1 && !activeBrand) {
         setActiveBrand(data[0] as Brand);
       }
@@ -75,52 +64,54 @@ export default function DashboardPage() {
     setCreating(false);
   }
 
-  // Contadores
   const pending = drafts.filter((d) => d.status === "pending_review").length;
-  const awaitingFinal = drafts.filter((d) => d.status === "approved_a").length;
+  const rejected = drafts.filter((d) => d.status === "rejected").length;
   const approved = drafts.filter((d) => d.status === "approved").length;
 
   if (loading) {
     return (
       <AppShell>
-        <div className="text-center py-20 text-gray-400">Cargando...</div>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full" />
+        </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-1">
-          Hola, {user?.full_name || "usuario"}
-        </h1>
-        <p className="text-gray-500 mb-6">
-          Esto es lo que está pasando con tu contenido.
-        </p>
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">
+            Hola, {user?.full_name || "usuario"}
+          </h1>
+          <p className="text-slate-500 mt-1">
+            Esto es lo que esta pasando con tu contenido.
+          </p>
+        </div>
 
-        {/* ===== Selector de marca ===== */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-700">Marca activa</h2>
+        {/* Selector de marca */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-700">Marca activa</h2>
             <button
               onClick={() => setShowNewBrand(!showNewBrand)}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
             >
               {showNewBrand ? "Cancelar" : "+ Nueva marca"}
             </button>
           </div>
 
-          {/* Lista de marcas existentes */}
           {brands.length > 0 && !showNewBrand && (
             <div className="flex flex-wrap gap-2">
               {brands.map((brand) => (
                 <button
                   key={brand.id}
                   onClick={() => setActiveBrand(brand)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     activeBrand?.id === brand.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   {brand.name}
@@ -129,53 +120,41 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Sin marcas */}
           {brands.length === 0 && !showNewBrand && (
-            <div className="text-center py-4">
-              <p className="text-sm text-gray-400 mb-3">
+            <div className="text-center py-6">
+              <p className="text-sm text-slate-400 mb-4">
                 No hay marcas creadas. Crea tu primera marca para empezar.
               </p>
               <button
                 onClick={() => setShowNewBrand(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 transition-colors"
               >
                 Crear primera marca
               </button>
             </div>
           )}
 
-          {/* Formulario de nueva marca */}
           {showNewBrand && (
             <form onSubmit={handleCreateBrand} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Nombre de la marca
-                </label>
-                <input
-                  type="text"
-                  value={newBrandName}
-                  onChange={(e) => setNewBrandName(e.target.value)}
-                  placeholder='Ej: "Quinua Snacks", "Café Bonito", "TechFlow"'
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Descripción <span className="text-gray-400">(opcional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={newBrandDesc}
-                  onChange={(e) => setNewBrandDesc(e.target.value)}
-                  placeholder="Breve descripción del producto o servicio"
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+              <input
+                type="text"
+                value={newBrandName}
+                onChange={(e) => setNewBrandName(e.target.value)}
+                placeholder="Nombre de la marca"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+              <input
+                type="text"
+                value={newBrandDesc}
+                onChange={(e) => setNewBrandDesc(e.target.value)}
+                placeholder="Descripcion (opcional)"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
               <button
                 type="submit"
                 disabled={creating || !newBrandName.trim()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
+                className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 disabled:opacity-50 transition-colors"
               >
                 {creating ? "Creando..." : "Crear Marca"}
               </button>
@@ -183,30 +162,29 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* ===== Contenido del dashboard (solo si hay marca activa) ===== */}
         {activeBrand && (
           <>
-            {/* Tarjetas de resumen */}
+            {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-2xl font-bold text-yellow-700">{pending}</p>
-                <p className="text-sm text-yellow-600">Pendientes</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <p className="text-3xl font-bold text-amber-600">{pending}</p>
+                <p className="text-sm text-slate-500 mt-1">Pendientes</p>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-2xl font-bold text-blue-700">{awaitingFinal}</p>
-                <p className="text-sm text-blue-600">Esperando aprobación final</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <p className="text-3xl font-bold text-red-600">{rejected}</p>
+                <p className="text-sm text-slate-500 mt-1">Rechazados</p>
               </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-2xl font-bold text-green-700">{approved}</p>
-                <p className="text-sm text-green-600">Aprobados</p>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <p className="text-3xl font-bold text-emerald-600">{approved}</p>
+                <p className="text-sm text-slate-500 mt-1">Aprobados</p>
               </div>
             </div>
 
-            {/* Accesos rápidos según rol */}
+            {/* Quick links */}
             <div className="flex gap-3 mb-8 flex-wrap">
               <Link
                 href="/brand-manual"
-                className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
               >
                 Manual de Marca
               </Link>
@@ -214,51 +192,56 @@ export default function DashboardPage() {
               {user?.role === "creator" && (
                 <Link
                   href="/generate"
-                  className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 transition-all shadow-sm"
                 >
                   + Generar Contenido
                 </Link>
               )}
 
               {(user?.role === "approver_a" || user?.role === "approver_b") && (
-                <>
-                  <Link
-                    href="/approvals"
-                    className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Ver Aprobaciones
-                  </Link>
-                  <Link
-                    href="/image-audit"
-                    className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Auditoría de Imagen
-                  </Link>
-                </>
+                <Link
+                  href="/approvals"
+                  className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 transition-all shadow-sm"
+                >
+                  Ver Aprobaciones
+                </Link>
+              )}
+
+              {user?.role === "approver_b" && (
+                <Link
+                  href="/image-audit"
+                  className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  Auditoria de Imagen
+                </Link>
               )}
             </div>
 
-            {/* Actividad reciente */}
-            <h2 className="text-lg font-semibold mb-3">Actividad reciente</h2>
-            <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
-              {drafts.slice(0, 5).map((draft) => (
-                <div key={draft.id} className="p-4 flex items-center justify-between gap-4">
-                  <p className="text-sm text-gray-700 truncate flex-1">{draft.prompt}</p>
+            {/* Recent activity */}
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Actividad reciente</h2>
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              {drafts.slice(0, 5).map((draft, i) => (
+                <div
+                  key={draft.id}
+                  className={`p-4 flex items-center justify-between gap-4 ${
+                    i > 0 ? "border-t border-slate-100" : ""
+                  }`}
+                >
+                  <p className="text-sm text-slate-700 truncate flex-1">{draft.prompt}</p>
                   <StatusBadge status={draft.status} />
                 </div>
               ))}
               {drafts.length === 0 && (
-                <div className="p-8 text-center text-gray-400 text-sm">
-                  No hay contenido aún. Empieza creando el manual de marca.
+                <div className="p-10 text-center text-slate-400 text-sm">
+                  No hay contenido aun. Empieza creando el manual de marca.
                 </div>
               )}
             </div>
           </>
         )}
 
-        {/* Sin marca seleccionada */}
         {!activeBrand && brands.length > 0 && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-16 text-slate-400">
             Selecciona una marca arriba para ver el dashboard.
           </div>
         )}

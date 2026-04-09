@@ -54,7 +54,7 @@ export interface Draft {
   brand_id: string;
   prompt: string;
   result: string;
-  platform: string;
+  content_type: string;
   status: DraftStatus;
   created_by: string;
   created_at: string;

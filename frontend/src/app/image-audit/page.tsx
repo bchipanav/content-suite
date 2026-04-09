@@ -1,11 +1,5 @@
 "use client";
 
-// ============================================
-// PANTALLA 4: Auditoría de Imagen
-// ============================================
-// El Aprobador B sube una imagen desde su computadora.
-// Gemini Vision la analiza contra las reglas visuales del manual.
-
 import { useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
@@ -46,15 +40,8 @@ export default function ImageAuditPage() {
 
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
-
-    if (!activeBrand) {
-      setError("Selecciona una marca primero");
-      return;
-    }
-    if (!selectedFile) {
-      setError("Selecciona una imagen primero");
-      return;
-    }
+    if (!activeBrand) { setError("Selecciona una marca primero"); return; }
+    if (!selectedFile) { setError("Selecciona una imagen primero"); return; }
 
     setPageState("analyzing");
     setError("");
@@ -71,55 +58,57 @@ export default function ImageAuditPage() {
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2">Auditoría de Imagen</h1>
-        <p className="text-gray-500 mb-6">
-          Sube una imagen para verificar si cumple con las reglas visuales de la marca
-          (colores, tipografía, logo, estilo).
-        </p>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Auditoria de Imagen</h1>
+          <p className="text-slate-500 mt-1">
+            Sube una imagen para verificar si cumple con las reglas visuales de la marca.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Columna izquierda: Upload */}
           <div>
-            <form onSubmit={handleAnalyze} className="space-y-4">
+            <form onSubmit={handleAnalyze} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Selecciona una imagen
                 </label>
 
                 {!selectedFile ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                    className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group"
                   >
-                    <div className="text-gray-400 mb-2 text-3xl">+</div>
-                    <p className="text-sm text-gray-500">
-                      Haz clic para seleccionar una imagen
+                    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:bg-blue-100 transition-colors">
+                      <svg className="w-6 h-6 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-slate-500 font-medium">
+                      Haz clic para seleccionar
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      PNG, JPG, WEBP (max 10MB)
-                    </p>
+                    <p className="text-xs text-slate-400 mt-1">PNG, JPG, WEBP (max 10MB)</p>
                   </div>
                 ) : (
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                     {filePreview && (
                       <img
                         src={filePreview}
                         alt="Preview"
-                        className="w-full h-48 object-contain bg-gray-50"
+                        className="w-full h-52 object-contain bg-slate-50"
                       />
                     )}
-                    <div className="p-3 flex items-center justify-between bg-white">
+                    <div className="p-4 flex items-center justify-between">
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-700 truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-sm text-slate-700 font-medium truncate">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-400">
                           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={clearFile}
-                        className="text-xs text-red-500 hover:text-red-700 shrink-0 ml-3"
+                        className="text-xs text-red-500 hover:text-red-700 font-medium shrink-0 ml-3"
                       >
                         Quitar
                       </button>
@@ -139,46 +128,48 @@ export default function ImageAuditPage() {
               <button
                 type="submit"
                 disabled={pageState === "analyzing" || !selectedFile}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {pageState === "analyzing" ? "Analizando con Gemini Vision..." : "Analizar Imagen"}
+                {pageState === "analyzing" ? "Analizando..." : "Analizar Imagen"}
               </button>
             </form>
           </div>
 
-          {/* Columna derecha: Resultado */}
           <div>
             {pageState === "analyzing" && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-                <p className="text-sm text-blue-700">
-                  Gemini Vision analizando la imagen contra tu manual de marca...
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-8 text-center">
+                <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+                <p className="text-sm text-blue-700 font-medium">
+                  Analizando imagen contra tu manual de marca...
                 </p>
               </div>
             )}
 
             {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-700">
                 {error}
               </div>
             )}
 
             {pageState === "result" && validationResult && (
               <div className="space-y-4">
-                {/* Score y veredicto */}
                 <div
-                  className={`p-5 rounded-lg border ${
+                  className={`p-6 rounded-2xl border ${
                     validationResult.compliant
-                      ? "bg-green-50 border-green-200"
+                      ? "bg-emerald-50 border-emerald-200"
                       : "bg-red-50 border-red-200"
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-3xl">
-                      {validationResult.compliant ? "✓" : "✗"}
-                    </span>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      validationResult.compliant ? "bg-emerald-100" : "bg-red-100"
+                    }`}>
+                      <span className={`text-lg ${validationResult.compliant ? "text-emerald-600" : "text-red-600"}`}>
+                        {validationResult.compliant ? "\u2713" : "\u2717"}
+                      </span>
+                    </div>
                     <p className={`font-semibold ${
-                      validationResult.compliant ? "text-green-800" : "text-red-800"
+                      validationResult.compliant ? "text-emerald-800" : "text-red-800"
                     }`}>
                       {validationResult.compliant
                         ? "Cumple con la marca"
@@ -188,16 +179,19 @@ export default function ImageAuditPage() {
                   <ScoreBar score={validationResult.score} />
                 </div>
 
-                {/* Problemas */}
                 {validationResult.issues.length > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      Problemas encontrados:
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                      Problemas encontrados
                     </h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2.5">
                       {validationResult.issues.map((issue, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-gray-700">
-                          <span className="text-red-400 shrink-0">-</span>
+                        <li key={i} className="flex gap-2.5 text-sm text-slate-700">
+                          <span className="text-red-400 shrink-0 mt-0.5">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                            </svg>
+                          </span>
                           {issue}
                         </li>
                       ))}
@@ -206,8 +200,8 @@ export default function ImageAuditPage() {
                 )}
 
                 {validationResult.issues.length === 0 && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                    <p className="text-sm text-gray-500">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+                    <p className="text-sm text-slate-500">
                       No se encontraron problemas. La imagen cumple con las directrices.
                     </p>
                   </div>

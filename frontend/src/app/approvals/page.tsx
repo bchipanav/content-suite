@@ -1,10 +1,5 @@
 "use client";
 
-// ============================================
-// PANTALLA 3: Lista de Aprobaciones
-// ============================================
-// Flujo simple: Pendiente → Aprobado / Rechazado
-
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
@@ -16,11 +11,18 @@ interface DraftItem {
   prompt: string;
   result: string;
   status: string;
-  platform: string;
+  content_type: string;
   created_at: string;
 }
 
 type StatusFilter = "all" | "pending_review" | "approved" | "rejected";
+
+const FILTER_LABELS: Record<StatusFilter, string> = {
+  all: "Todos",
+  pending_review: "Pendientes",
+  approved: "Aprobados",
+  rejected: "Rechazados",
+};
 
 export default function ApprovalsPage() {
   const { user } = useStore();
@@ -29,7 +31,6 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [reviewComment, setReviewComment] = useState("");
   const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
@@ -51,53 +52,48 @@ export default function ApprovalsPage() {
   async function handleReview(draftId: string, action: "approved" | "rejected") {
     setReviewing(true);
     try {
-      await api.reviewDraft(draftId, action, reviewComment || undefined);
-      setReviewComment("");
+      await api.reviewDraft(draftId, action);
       setExpandedId(null);
       await loadDrafts();
     } catch {
-      alert("Error al enviar la revisión");
+      alert("Error al enviar la revision");
     }
     setReviewing(false);
   }
 
-  const filterLabels: Record<StatusFilter, string> = {
-    all: "Todos",
-    pending_review: "Pendientes",
-    approved: "Aprobados",
-    rejected: "Rechazados",
-  };
-
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2">Aprobaciones</h1>
-        <p className="text-gray-500 mb-6">
-          Revisa el contenido generado y decide si cumple con la marca.
-        </p>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Aprobaciones</h1>
+          <p className="text-slate-500 mt-1">
+            Revisa el contenido generado y decide si cumple con la marca.
+          </p>
+        </div>
 
-        {/* Filtros */}
+        {/* Filters */}
         <div className="flex gap-2 mb-6 flex-wrap">
-          {(Object.keys(filterLabels) as StatusFilter[]).map((status) => (
+          {(Object.keys(FILTER_LABELS) as StatusFilter[]).map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 filter === status
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50"
               }`}
             >
-              {filterLabels[status]}
+              {FILTER_LABELS[status]}
             </button>
           ))}
         </div>
 
-        {/* Lista */}
         {loading ? (
-          <div className="text-center py-12 text-gray-400">Cargando...</div>
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full" />
+          </div>
         ) : drafts.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-16 text-slate-400 text-sm">
             No hay borradores {filter !== "all" ? "con este estado" : ""}
           </div>
         ) : (
@@ -109,21 +105,20 @@ export default function ApprovalsPage() {
               return (
                 <div
                   key={draft.id}
-                  className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm"
+                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-all"
                 >
-                  {/* Header */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : draft.id)}
-                    className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                    className="w-full p-5 text-left hover:bg-slate-50/50 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-slate-900 truncate">
                           {draft.prompt}
                         </p>
                         <div className="flex gap-3 mt-1.5">
-                          <span className="text-xs text-gray-400">{draft.platform}</span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-slate-400">{draft.content_type}</span>
+                          <span className="text-xs text-slate-400">
                             {new Date(draft.created_at).toLocaleDateString("es")}
                           </span>
                         </div>
@@ -132,43 +127,38 @@ export default function ApprovalsPage() {
                     </div>
                   </button>
 
-                  {/* Contenido expandido */}
                   {isExpanded && (
-                    <div className="border-t border-gray-100 p-4 space-y-4">
-                      {/* Texto generado */}
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs font-medium text-gray-500 mb-2">
-                          Contenido generado:
+                    <div className="border-t border-slate-100 p-5 space-y-4">
+                      <div className="bg-slate-50 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                          Contenido generado
                         </p>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
                           {draft.result}
                         </p>
                       </div>
 
-                      {/* Acciones — solo si está pendiente */}
                       {canReview && (
-                        <div className="space-y-3">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleReview(draft.id, "approved")}
-                              disabled={reviewing}
-                              className="px-4 py-2 rounded-lg text-sm text-white font-medium bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
-                            >
-                              Aprobar
-                            </button>
-                            <button
-                              onClick={() => handleReview(draft.id, "rejected")}
-                              disabled={reviewing}
-                              className="px-4 py-2 rounded-lg text-sm text-white font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
-                            >
-                              Rechazar
-                            </button>
-                          </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReview(draft.id, "approved")}
+                            disabled={reviewing}
+                            className="px-5 py-2.5 rounded-xl text-sm text-white font-medium bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all"
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() => handleReview(draft.id, "rejected")}
+                            disabled={reviewing}
+                            className="px-5 py-2.5 rounded-xl text-sm text-white font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 transition-all"
+                          >
+                            Rechazar
+                          </button>
                         </div>
                       )}
 
                       {!canReview && (
-                        <p className="text-xs text-gray-400 italic">
+                        <p className="text-xs text-slate-400">
                           {draft.status === "approved"
                             ? "Este contenido fue aprobado."
                             : "Este contenido fue rechazado."}

@@ -79,8 +79,7 @@ export const api = {
   generateContent(params: {
     brand_id: string;
     prompt: string;
-    platform: string;
-    format: string;
+    content_type: string;
   }) {
     return request<{
       id: string;
@@ -99,7 +98,7 @@ export const api = {
     if (filters?.brand_id) params.set("brand_id", filters.brand_id);
     const query = params.toString();
     return request<
-      { id: string; prompt: string; result: string; status: string; platform: string; created_at: string }[]
+      { id: string; prompt: string; result: string; status: string; content_type: string; created_at: string }[]
     >(`/api/content/drafts${query ? `?${query}` : ""}`);
   },
 
