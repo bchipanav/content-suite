@@ -232,6 +232,14 @@ npm run dev
 # App: http://localhost:3000
 ```
 
+## URLs de Produccion
+
+| Servicio | URL |
+|----------|-----|
+| Frontend | https://content-suite-app.onrender.com |
+| Backend API | https://content-suite-mk05.onrender.com |
+| Swagger Docs | https://content-suite-mk05.onrender.com/docs |
+
 ## Deploy (Render - monorepo)
 
 El proyecto se despliega completo en Render desde un solo repositorio
@@ -243,7 +251,7 @@ usando `render.yaml` (Infrastructure as Code).
    - **content-suite-app** (Node): Frontend Next.js
 3. Configurar las variables de entorno en cada servicio:
    - Backend: copiar las keys del `.env`
-   - Frontend: `NEXT_PUBLIC_API_URL` = URL del backend (ej: `https://content-suite-api.onrender.com`)
+   - Frontend: `NEXT_PUBLIC_API_URL` = `https://content-suite-mk05.onrender.com`
 
 ## Decisiones Tecnicas
 
