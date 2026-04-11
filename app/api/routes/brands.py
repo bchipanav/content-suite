@@ -1,12 +1,11 @@
 """
 Rutas del modulo Brand DNA Architect.
 
-CRUD de marcas + generacion/subida/consulta de manuales.
+CRUD de marcas + generacion/consulta de manuales.
 Endpoints:
     POST /api/brands/                      - Crear marca
     GET  /api/brands/                      - Listar marcas
     GET  /api/brands/{id}                  - Detalle de marca
-    POST /api/brands/{id}/manual           - Subir manual (texto)
     POST /api/brands/{id}/manual/generate  - Generar manual con IA
     GET  /api/brands/{id}/manual           - Obtener manual (JSON)
     POST /api/brands/{id}/manual/query     - Busqueda semantica
@@ -18,7 +17,6 @@ from app.core.clients import supabase
 from app.schemas.brand import (
     BrandCreate,
     BrandResponse,
-    ManualUpload,
     ManualGenerateRequest,
     ManualQueryRequest,
 )
@@ -51,17 +49,6 @@ async def get_brand(brand_id: str, user=Depends(require_permission("brand.read")
     """Detalle de una marca por ID."""
     result = supabase.table("brands").select("*").eq("id", brand_id).single().execute()
     return result.data
-
-
-@router.post("/{brand_id}/manual")
-async def upload_manual(
-    brand_id: str,
-    body: ManualUpload,
-    user=Depends(require_permission("manual.upload")),
-):
-    """Subir manual de marca como texto. Estructura, genera embeddings y guarda."""
-    result = await brand_dna.ingest_manual(brand_id, body.raw_text)
-    return result
 
 
 @router.post("/{brand_id}/manual/generate")

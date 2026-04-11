@@ -12,8 +12,6 @@ Flujo:
 
 import json
 
-import httpx
-
 from app.core.clients import supabase, groq_client, gemini_model, langfuse
 from app.services import retrieval
 
@@ -121,17 +119,6 @@ async def validate_image_from_bytes(
     trace.update(output=result)
     trace.score(name="visual_compliance", value=result["score"] / 100)
     return result
-
-
-async def validate_image_from_url(brand_id: str, image_url: str) -> dict:
-    """Valida una imagen por URL: descarga los bytes y delega a validate_image_from_bytes."""
-    async with httpx.AsyncClient() as client:
-        img_response = await client.get(image_url)
-        img_response.raise_for_status()
-        image_bytes = img_response.content
-        content_type = img_response.headers.get("content-type", "image/png")
-
-    return await validate_image_from_bytes(brand_id, image_bytes, content_type)
 
 
 # ---------------------------------------------------------------------------

@@ -15,12 +15,6 @@ class BrandResponse(BaseModel):
     created_at: str
 
 
-class ManualUpload(BaseModel):
-    """Texto crudo de un manual existente (el frontend lo envia ya parseado)."""
-
-    raw_text: str
-
-
 class ManualGenerateRequest(BaseModel):
     """Parametros para que la IA genere el manual de marca."""
 

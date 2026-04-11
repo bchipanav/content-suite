@@ -4,7 +4,6 @@ Rutas del modulo Governance & Multimodal Audit.
 Validacion de contenido, flujo de aprobacion y auditoria de imagen.
 Endpoints:
     POST /api/governance/validate              - Validar texto vs manual
-    POST /api/governance/validate-image        - Validar imagen por URL
     POST /api/governance/validate-image/upload - Validar imagen (file upload)
     POST /api/governance/drafts/{id}/review    - Aprobar/rechazar borrador
     GET  /api/governance/audit-log             - Historial de auditoria
@@ -16,7 +15,6 @@ from app.core.clients import supabase
 from app.schemas.governance import (
     ReviewRequest,
     ValidateTextRequest,
-    ValidateImageRequest,
     ValidationResponse,
 )
 from app.middleware.rbac import require_permission
@@ -32,16 +30,6 @@ async def validate_text(
 ):
     """Validar texto contra el manual de marca (compliance score)."""
     result = await governance.validate_text(body.brand_id, body.text)
-    return result
-
-
-@router.post("/validate-image", response_model=ValidationResponse)
-async def validate_image_by_url(
-    body: ValidateImageRequest,
-    user=Depends(require_permission("governance.validate")),
-):
-    """Validar imagen por URL contra reglas visuales con Gemini Vision."""
-    result = await governance.validate_image_from_url(body.brand_id, body.image_url)
     return result
 
 

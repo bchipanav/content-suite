@@ -157,7 +157,6 @@ content-suite/
 | POST | `/api/brands/` | `brand.create` | Crear marca |
 | GET | `/api/brands/` | `brand.read` | Listar marcas |
 | GET | `/api/brands/{id}` | `brand.read` | Detalle de marca |
-| POST | `/api/brands/{id}/manual` | `manual.upload` | Subir manual (texto) |
 | POST | `/api/brands/{id}/manual/generate` | `manual.upload` | Generar manual con IA |
 | GET | `/api/brands/{id}/manual` | `manual.read` | Obtener manual (JSON) |
 | POST | `/api/brands/{id}/manual/query` | `manual.read` | Busqueda semantica |
@@ -177,7 +176,6 @@ content-suite/
 | Metodo | Ruta | Permiso | Descripcion |
 |--------|------|---------|-------------|
 | POST | `/api/governance/validate` | `governance.validate` | Validar texto vs manual |
-| POST | `/api/governance/validate-image` | `governance.validate` | Validar imagen (URL) |
 | POST | `/api/governance/validate-image/upload` | `governance.validate` | Validar imagen (file upload) |
 | POST | `/api/governance/drafts/{id}/review` | `governance.approve` | Aprobar/rechazar borrador |
 | GET | `/api/governance/audit-log` | `governance.validate` | Historial de auditoria |

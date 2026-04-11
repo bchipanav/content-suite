@@ -15,11 +15,6 @@ class ValidateTextRequest(BaseModel):
     text: str
 
 
-class ValidateImageRequest(BaseModel):
-    brand_id: str
-    image_url: str
-
-
 class ValidationResponse(BaseModel):
     compliant: bool
     score: float              # 0-100

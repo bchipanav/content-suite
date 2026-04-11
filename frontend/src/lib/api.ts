@@ -55,13 +55,6 @@ export const api = {
     );
   },
 
-  uploadManual(brandId: string, rawText: string) {
-    return request<{ chunks_stored: number; sections: string[] }>(
-      `/api/brands/${brandId}/manual`,
-      { method: "POST", body: JSON.stringify({ raw_text: rawText }) }
-    );
-  },
-
   generateManual(brandId: string, params: { product: string; tone: string; target_audience: string; extra_context?: string }) {
     return request<{ chunks_stored: number; sections: string[]; generated_manual: Record<string, string> }>(
       `/api/brands/${brandId}/manual/generate`,
@@ -107,13 +100,6 @@ export const api = {
     return request<{ compliant: boolean; score: number; issues: string[] }>(
       "/api/governance/validate",
       { method: "POST", body: JSON.stringify({ brand_id: brandId, text }) }
-    );
-  },
-
-  validateImage(brandId: string, imageUrl: string) {
-    return request<{ compliant: boolean; score: number; issues: string[] }>(
-      "/api/governance/validate-image",
-      { method: "POST", body: JSON.stringify({ brand_id: brandId, image_url: imageUrl }) }
     );
   },
 

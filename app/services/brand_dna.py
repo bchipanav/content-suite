@@ -1,12 +1,11 @@
 """
 Servicio Brand DNA Architect (Modulo I).
 
-Responsable de procesar manuales de marca: estructurar, hacer chunking,
+Responsable de procesar manuales de marca: generar con IA, hacer chunking,
 generar embeddings y guardar en Supabase.
 
 Fase 1 del RAG - Preparacion de datos:
-    A) Parametros del usuario --> IA genera manual --> Chunks --> Embeddings --> Guardar
-    B) Texto crudo --> IA estructura --> Chunks --> Embeddings --> Guardar
+    Parametros del usuario --> IA genera manual --> Chunks --> Embeddings --> Guardar
 """
 
 import json
@@ -84,47 +83,9 @@ async def generate_manual(
         f"## {key}\n{value}" for key, value in structured.items() if value
     )
 
-    result = await ingest_manual(brand_id, raw_text, pre_structured=structured)
+    result = await ingest_manual(brand_id, structured)
     result["generated_manual"] = structured
     return result
-
-
-# ---------------------------------------------------------------------------
-# Modo B: Estructurar manual desde texto crudo
-# ---------------------------------------------------------------------------
-
-async def _structure_manual(raw_text: str, trace) -> dict:
-    """
-    Usa Groq para leer texto crudo y organizarlo en secciones.
-
-    Entrada:  "Nuestra marca usa colores vibrantes. El tono es amigable..."
-    Salida:   {"tono_de_voz": "Amigable...", "paleta_colores": "#FF5733..."}
-    """
-    span = trace.span(name="structure_manual")
-
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Eres un experto en branding. Analiza el siguiente manual de marca "
-                    "y devuelve un JSON con estas secciones: "
-                    "tono_de_voz, paleta_colores, tipografia, valores_marca, "
-                    "personalidad, publico_objetivo, restricciones, uso_logo. "
-                    "Si alguna seccion no existe en el texto, ponla como null. "
-                    "Responde SOLO con el JSON, sin explicaciones."
-                ),
-            },
-            {"role": "user", "content": raw_text},
-        ],
-        temperature=0.1,
-        response_format={"type": "json_object"},
-    )
-
-    structured = json.loads(response.choices[0].message.content)
-    span.end(output={"sections_found": list(structured.keys())})
-    return structured
 
 
 # ---------------------------------------------------------------------------
@@ -164,25 +125,17 @@ def _chunk_manual(structured: dict) -> list[dict]:
 # Pipeline de ingesta: estructura + chunks + embeddings + guardar
 # ---------------------------------------------------------------------------
 
-async def ingest_manual(
-    brand_id: str,
-    raw_text: str,
-    pre_structured: dict | None = None,
-) -> dict:
+async def ingest_manual(brand_id: str, structured: dict) -> dict:
     """
-    Pipeline completo de ingesta de un manual de marca.
+    Pipeline de ingesta de un manual de marca ya estructurado.
 
     Pasos:
-        1. Estructurar con IA (o usar pre_structured si viene de generate_manual)
-        2. Guardar JSON estructurado en brand_manuals
-        3. Dividir en chunks
-        4. Generar embeddings (Google AI, 768 dims)
-        5. Guardar chunks + vectores en brand_embeddings
+        1. Guardar JSON estructurado en brand_manuals
+        2. Dividir en chunks
+        3. Generar embeddings (Google AI, 768 dims)
+        4. Guardar chunks + vectores en brand_embeddings
     """
     trace = langfuse.trace(name="brand_dna_ingestion", metadata={"brand_id": brand_id})
-
-    # Paso 1: Estructurar
-    structured = pre_structured or await _structure_manual(raw_text, trace)
 
     # Paso 2: Guardar JSON (reemplaza version anterior)
     supabase.table("brand_manuals").delete().eq("brand_id", brand_id).execute()
