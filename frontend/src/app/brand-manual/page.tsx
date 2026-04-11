@@ -5,7 +5,6 @@ import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import AppShell from "@/components/layout/AppShell";
 
-type Mode = "generate" | "upload";
 type PageState = "idle" | "processing" | "success" | "error";
 
 const SECTION_LABELS: Record<string, string> = {
@@ -22,7 +21,6 @@ const SECTION_LABELS: Record<string, string> = {
 export default function BrandManualPage() {
   const { activeBrand } = useStore();
 
-  const [mode, setMode] = useState<Mode>("generate");
   const [pageState, setPageState] = useState<PageState>("idle");
   const [error, setError] = useState("");
 
@@ -30,7 +28,6 @@ export default function BrandManualPage() {
   const [tone, setTone] = useState("");
   const [audience, setAudience] = useState("");
   const [extraContext, setExtraContext] = useState("");
-  const [rawText, setRawText] = useState("");
 
   const [result, setResult] = useState<{
     chunks_stored: number;
@@ -68,24 +65,6 @@ export default function BrandManualPage() {
       setPageState("success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al generar el manual");
-      setPageState("error");
-    }
-  }
-
-  async function handleUpload(e: React.FormEvent) {
-    e.preventDefault();
-    if (!activeBrand) { setError("Selecciona una marca primero"); return; }
-    if (rawText.trim().length < 50) { setError("El manual debe tener al menos 50 caracteres"); return; }
-
-    setPageState("processing");
-    setError("");
-
-    try {
-      const data = await api.uploadManual(activeBrand.id, rawText);
-      setResult(data);
-      setPageState("success");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al procesar el manual");
       setPageState("error");
     }
   }
@@ -157,30 +136,7 @@ export default function BrandManualPage() {
 
         {!loadingManual && (!existingManual || pageState === "success") && (
           <>
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setMode("generate")}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  mode === "generate"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50"
-                }`}
-              >
-                Generar con IA
-              </button>
-              <button
-                onClick={() => setMode("upload")}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  mode === "upload"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50"
-                }`}
-              >
-                Subir texto existente
-              </button>
-            </div>
-
-            {mode === "generate" && pageState !== "success" && (
+            {pageState !== "success" && (
               <form onSubmit={handleGenerate} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Producto o servicio</label>
@@ -241,36 +197,11 @@ export default function BrandManualPage() {
               </form>
             )}
 
-            {mode === "upload" && pageState !== "success" && (
-              <form onSubmit={handleUpload} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <textarea
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder={"Pega aqui el contenido de tu manual de marca...\n\nEjemplo:\nTono de voz: Cercano y calido...\nColores: #8B4513 marron...\nValores: Innovacion, comunidad..."}
-                  rows={14}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={pageState === "processing"}
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-400">{rawText.length} caracteres</span>
-                  <button
-                    type="submit"
-                    disabled={pageState === "processing" || rawText.trim().length < 50}
-                    className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {pageState === "processing" ? "Procesando..." : "Procesar Manual"}
-                  </button>
-                </div>
-              </form>
-            )}
-
             {pageState === "processing" && (
               <div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-8 text-center">
                 <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
                 <p className="text-sm text-blue-700 font-medium">
-                  {mode === "generate"
-                    ? "La IA esta creando tu manual de marca completo..."
-                    : "Analizando y estructurando tu manual..."}
+                  La IA esta creando tu manual de marca completo...
                 </p>
                 <p className="text-xs text-blue-500 mt-1">Esto puede tardar 15-30 segundos.</p>
               </div>
@@ -286,7 +217,7 @@ export default function BrandManualPage() {
               <div className="mt-6 space-y-5">
                 <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl">
                   <h2 className="font-semibold text-emerald-800 mb-1">
-                    Manual {mode === "generate" ? "generado" : "procesado"} correctamente
+                    Manual generado correctamente
                   </h2>
                   <p className="text-sm text-emerald-700">
                     {result.chunks_stored} fragmentos guardados en la base de datos vectorial.
@@ -294,19 +225,6 @@ export default function BrandManualPage() {
                 </div>
 
                 {result.generated_manual && <ManualSections data={result.generated_manual} />}
-
-                {!result.generated_manual && (
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-700 mb-2">Secciones detectadas:</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {result.sections.map((s) => (
-                        <span key={s} className="bg-white border border-emerald-200 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium">
-                          {SECTION_LABELS[s] || s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <button
                   onClick={() => { setPageState("idle"); setResult(null); setExistingManual(result.generated_manual || null); }}

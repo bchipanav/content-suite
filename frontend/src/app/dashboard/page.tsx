@@ -182,20 +182,21 @@ export default function DashboardPage() {
 
             {/* Quick links */}
             <div className="flex gap-3 mb-8 flex-wrap">
-              <Link
-                href="/brand-manual"
-                className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
-              >
-                Manual de Marca
-              </Link>
-
               {user?.role === "creator" && (
-                <Link
-                  href="/generate"
-                  className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 transition-all shadow-sm"
-                >
-                  + Generar Contenido
-                </Link>
+                <>
+                  <Link
+                    href="/brand-manual"
+                    className="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
+                  >
+                    Manual de Marca
+                  </Link>
+                  <Link
+                    href="/generate"
+                    className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-500 transition-all shadow-sm"
+                  >
+                    + Generar Contenido
+                  </Link>
+                </>
               )}
 
               {(user?.role === "approver_a" || user?.role === "approver_b") && (

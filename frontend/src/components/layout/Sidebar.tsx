@@ -14,7 +14,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",           href: "/dashboard",     roles: ["creator", "approver_a", "approver_b"], icon: "grid" },
-  { label: "Manual de Marca",     href: "/brand-manual",  roles: ["creator", "approver_a", "approver_b"], icon: "book" },
+  { label: "Manual de Marca",     href: "/brand-manual",  roles: ["creator"],                             icon: "book" },
   { label: "Generar Contenido",   href: "/generate",      roles: ["creator"],                             icon: "sparkles" },
   { label: "Aprobaciones",        href: "/approvals",     roles: ["approver_a", "approver_b"],            icon: "check-circle" },
   { label: "Auditoria de Imagen", href: "/image-audit",   roles: ["approver_b"],                          icon: "image" },

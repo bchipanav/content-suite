@@ -25,7 +25,7 @@ const FILTER_LABELS: Record<StatusFilter, string> = {
 };
 
 export default function ApprovalsPage() {
-  const { user } = useStore();
+  const { user, activeBrand } = useStore();
 
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +35,14 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     loadDrafts();
-  }, [filter]);
+  }, [filter, activeBrand]);
 
   async function loadDrafts() {
     setLoading(true);
     try {
-      const filters = filter === "all" ? {} : { status: filter };
+      const filters: { status?: string; brand_id?: string } = {};
+      if (filter !== "all") filters.status = filter;
+      if (activeBrand) filters.brand_id = activeBrand.id;
       const data = await api.listDrafts(filters);
       setDrafts(data as DraftItem[]);
     } catch {

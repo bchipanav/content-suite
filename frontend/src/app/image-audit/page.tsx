@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import AppShell from "@/components/layout/AppShell";
@@ -22,6 +22,14 @@ export default function ImageAuditPage() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [hasManual, setHasManual] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!activeBrand) { setHasManual(null); return; }
+    api.getManual(activeBrand.id)
+      .then(() => setHasManual(true))
+      .catch(() => setHasManual(false));
+  }, [activeBrand]);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -66,7 +74,18 @@ export default function ImageAuditPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {hasManual === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+            <p className="text-sm text-amber-800 font-medium mb-3">
+              Esta marca no tiene un manual de marca generado.
+            </p>
+            <p className="text-xs text-amber-600">
+              El Creator debe generar el manual primero para poder auditar imagenes contra las reglas de la marca.
+            </p>
+          </div>
+        )}
+
+        {hasManual === true && <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <form onSubmit={handleAnalyze} className="space-y-5">
               <div>
@@ -209,7 +228,7 @@ export default function ImageAuditPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
     </AppShell>
   );
